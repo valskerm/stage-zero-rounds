@@ -2,9 +2,12 @@ name: Update league data
 
 on:
   schedule:
-    - cron: "0 6 * * *"    # every day 08:00 SAST
-    - cron: "0 22 * * *"   # every day 00:00 SAST
+    - cron: "17 */3 * * *" # every 3 hours
   workflow_dispatch:        # run it by hand from the Actions tab
+  push:
+    paths:
+      - scripts/update-data.mjs
+      - .github/workflows/update-data.yml
 
 permissions:
   contents: write
