@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stage Zero Rounds</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0}
+
+/* Layout: scoreboard header, round selector strip, one standings table per round, captured-totals ledger below */
+:root{
+  --bg:#f3f5f1; --surface:#ffffff; --fg:#14201a; --muted:#5d6b63; --line:#dbe2dc;
+  --pitch:#1f5b3f; --pitch-ink:#ffffff; --gold:#b8860b; --gold-bg:#fbf1d6; --up:#1f7a46; --chip:#e7eee9;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1512; --surface:#17201b; --fg:#e7eee9; --muted:#9aaba1; --line:#2a352f;
+  --pitch:#2c7a55; --pitch-ink:#ffffff; --gold:#e3b649; --gold-bg:#3a3017; --up:#5fcf8e; --chip:#22302a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1512; --surface:#17201b; --fg:#e7eee9; --muted:#9aaba1; --line:#2a352f;
+  --pitch:#2c7a55; --pitch-ink:#ffffff; --gold:#e3b649; --gold-bg:#3a3017; --up:#5fcf8e; --chip:#22302a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.45}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+header{background:var(--pitch);color:var(--pitch-ink);border-radius:14px;padding:20px 22px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-end}
+h1{font-family:var(--display);font-weight:800;font-size:2.4rem;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.sub{opacity:.85;margin-top:6px;font-size:.9rem}
+.status{font-family:var(--display);font-size:1.1rem;font-weight:600;text-align:right;letter-spacing:.03em;text-transform:uppercase}
+.status b{font-size:1.8rem;display:block;line-height:1}
+.rounds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.rbtn{all:unset;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rbtn:focus-visible{outline:2px solid var(--pitch);outline-offset:2px}
+.rbtn .rn{font-family:var(--display);font-weight:700;font-size:1.3rem;text-transform:uppercase;line-height:1}
+.rbtn .rg{color:var(--muted);font-size:.78rem}
+.rbtn .rs{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rbtn .rs.live{color:var(--up)} .rbtn .rs.done{color:var(--gold)}
+.rbtn[aria-selected="true"]{background:var(--pitch);border-color:var(--pitch);color:var(--pitch-ink)}
+.rbtn[aria-selected="true"] .rg,.rbtn[aria-selected="true"] .rs{color:var(--pitch-ink);opacity:.85}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.ptitle{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+h2{font-family:var(--display);font-weight:700;font-size:1.6rem;margin:0;text-transform:uppercase;letter-spacing:.02em}
+.note{color:var(--muted);font-size:.85rem;max-width:68ch}
+.winner{background:var(--gold-bg);border-radius:10px;padding:10px 14px;display:flex;gap:10px;align-items:center;font-weight:600}
+.winner .cup{font-family:var(--display);font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.06em}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;white-space:nowrap}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;background:var(--chip)}
+th.l,td.l{text-align:left}
+td.pos{font-family:var(--display);font-weight:700;font-size:1.15rem;width:36px;text-align:center}
+tr.first td.pos{color:var(--gold)}
+.mgr{font-weight:600}.team{color:var(--muted);font-size:.8rem}
+td.pts{font-family:var(--display);font-weight:800;font-size:1.3rem}
+td.gw{color:var(--muted)} td.gw.best{color:var(--up);font-weight:600}
+td.base{color:var(--muted)}
+.me td{background:color-mix(in srgb,var(--pitch) 8%,transparent)}
+.ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.lcard{border:1px solid var(--line);border-radius:10px;padding:12px}
+.lcard h3{margin:0 0 4px;font-family:var(--display);font-size:1.1rem;text-transform:uppercase}
+details summary{cursor:pointer;font-weight:600}
+textarea{width:100%;box-sizing:border-box;min-height:90px;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button.b{font:inherit;font-weight:600;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--fg);padding:8px 12px;cursor:pointer}
+button.b.primary{background:var(--pitch);color:var(--pitch-ink);border-color:var(--pitch)}
+button.b:focus-visible{outline:2px solid var(--pitch);outline-offset:2px}
+.msg{font-size:.85rem;font-weight:600}
+pre.code{overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:.75rem;white-space:pre}
+@media (max-width:560px){.rounds{grid-template-columns:repeat(2,minmax(0,1fr))} h1{font-size:2rem} .status{text-align:left}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Stage Zero Rounds</h1>
+      <div class="sub">FPL Classic League 657059 · four 10-gameweek rounds · points reset each round</div>
+    </div>
+    <div class="status"><span id="statusLbl">Data up to</span><b id="statusGw">GW10</b></div>
+  </header>
+
+  <nav class="rounds" role="tablist" id="rounds"></nav>
+
+  <section class="panel" id="panel"></section>
+
+  <section class="panel">
+    <div class="ptitle"><h2>Captured totals</h2></div>
+    <p class="note">The overall FPL total each manager had when a round closed. The next round's score is the current total minus this figure.</p>
+    <div class="ledger" id="ledger"></div>
+  </section>
+
+</div>
+
+<script>
+let DATA={updated:"",lastGw:0,managers:[]};
+const ROUNDS=[{n:1,from:1,to:10},{n:2,from:11,to:20},{n:3,from:21,to:30},{n:4,from:31,to:40}];
+const ME=3211004;
+const KEY="sz-rounds-data";
+
+// Overall total at end of gameweek g (carries forward; 0 before joining)
+function totalAt(m,g){let t=0;for(let i=1;i<=g;i++){if(m.h[i]!=null)t=m.h[i];}return t;}
+function roundScore(m,r,upTo){const end=Math.min(r.to,upTo);if(end<r.from)return 0;return totalAt(m,end)-totalAt(m,r.from-1);}
+function gwPts(m,g){return totalAt(m,g)-totalAt(m,g-1);}
+function roundState(r){const g=DATA.lastGw;if(g>=r.to)return"done";if(g>=r.from)return"live";return"next";}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let sel=1;
+
+function standings(r){
+  const rows=DATA.managers.map(m=>({m,pts:roundScore(m,r,DATA.lastGw),base:totalAt(m,r.from-1),total:totalAt(m,DATA.lastGw)}));
+  rows.sort((a,b)=>b.pts-a.pts||b.total-a.total);
+  let pos=0,prev=null;rows.forEach((x,i)=>{if(x.pts!==prev){pos=i+1;prev=x.pts;}x.pos=pos;});
+  return rows;
+}
+
+function renderTabs(){
+  document.getElementById("rounds").innerHTML=ROUNDS.map(r=>{
+    const st=roundState(r);const lbl={done:"Finished",live:"In progress",next:"Up next"}[st];
+    return `<button class="rbtn" role="tab" aria-selected="${r.n===sel}" data-r="${r.n}" id="tab${r.n}">
+      <span class="rn">Round ${r.n}</span><span class="rg">GW ${r.from}–${r.to}</span><span class="rs ${st}">${lbl}</span></button>`;}).join("");
+  document.querySelectorAll(".rbtn").forEach(b=>b.onclick=()=>{sel=+b.dataset.r;try{history.replaceState(null,"","#round-"+sel)}catch(e){}render();});
+}
+
+function renderPanel(){
+  const r=ROUNDS[sel-1];const st=roundState(r);const rows=standings(r);
+  const played=[];for(let g=r.from;g<=Math.min(r.to,DATA.lastGw);g++)played.push(g);
+  const bestGw={};played.forEach(g=>{bestGw[g]=Math.max(...DATA.managers.map(m=>gwPts(m,g)));});
+  let note;
+  if(st==="next") note=`Round ${r.n} starts at GW${r.from}. Everyone is on 0. ${r.from>1?`Scores will count from the totals captured at the end of GW${r.from-1}.`:""}`;
+  else if(st==="live") note=`${played.length} of 10 gameweeks played. Round score = current total − total captured at GW${r.from-1}.`;
+  else note=r.from===1?`Final. Round 1 score is the overall total at the end of GW10.`:`Final. Round score = total at GW${r.to} − total captured at GW${r.from-1}.`;
+  const winner=st==="done"?rows.filter(x=>x.pos===1):[];
+  const showBase=r.from>1;
+  document.getElementById("panel").innerHTML=`
+    <div class="ptitle"><h2>Round ${r.n} standings</h2><span class="note">GW ${r.from}–${r.to}</span></div>
+    <p class="note">${note}</p>
+    ${winner.length?`<div class="winner"><span class="cup">Round winner</span><span>${winner.map(w=>esc(w.m.name)+" · "+esc(w.m.team)).join(" & ")} with ${winner[0].pts} pts</span></div>`:""}
+    <div class="tbl"><table>
+      <thead><tr><th>#</th><th class="l">Manager</th><th>Round pts</th>${played.map(g=>`<th>GW${g}</th>`).join("")}${showBase?`<th>Captured GW${r.from-1}</th>`:""}<th>Overall</th></tr></thead>
+      <tbody>${rows.map(x=>`<tr class="${x.pos===1&&st!=="next"?"first":""} ${x.m.id===ME?"me":""}">
+        <td class="pos">${x.pos}</td>
+        <td class="l"><div class="mgr">${esc(x.m.name)}</div><div class="team">${esc(x.m.team)}</div></td>
+        <td class="pts">${x.pts}</td>
+        ${played.map(g=>{const p=gwPts(x.m,g);return `<td class="gw ${p===bestGw[g]&&p>0?"best":""}">${p}</td>`}).join("")}
+        ${showBase?`<td class="base">${x.base}</td>`:""}
+        <td>${x.total}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${played.length?`<p class="note">Green gameweek figures are the top score in the league that week.</p>`:""}`;
+}
+
+function renderLedger(){
+  const caps=[10,20,30].map((g,i)=>({g,next:i+2}));
+  document.getElementById("ledger").innerHTML=caps.map(c=>{
+    if(DATA.lastGw<c.g)return `<div class="lcard"><h3>After GW${c.g}</h3><p class="note">Captured when GW${c.g} finishes. Baseline for Round ${c.next}.</p></div>`;
+    const rows=[...DATA.managers].sort((a,b)=>totalAt(b,c.g)-totalAt(a,c.g));
+    return `<div class="lcard"><h3>After GW${c.g}</h3><p class="note">Baseline for Round ${c.next}</p>
+      <table><tbody>${rows.map(m=>`<tr><td class="l">${esc(m.name)}</td><td>${totalAt(m,c.g)}</td></tr>`).join("")}</tbody></table></div>`;}).join("");
+}
+
+function render(){
+  renderTabs();renderPanel();renderLedger();
+  document.getElementById("statusGw").textContent="GW"+DATA.lastGw;
+}
+
+async function boot(){
+  try{const r=await fetch("data.json?t="+Date.now(),{cache:"no-store"});DATA=await r.json();}
+  catch(e){document.getElementById("panel").innerHTML='<p class="note">Could not load data.json.</p>';return;}
+  const last=ROUNDS.filter(r=>roundState(r)!=="next").pop();sel=(last||ROUNDS[0]).n;
+  try{const h=location.hash.match(/^#round-([1-4])$/);if(h)sel=+h[1];}catch(e){}
+  render();
+  document.getElementById("statusLbl").textContent="Updated "+DATA.updated+" · data up to";
+}
+boot();
+</script>
+
+</body>
+</html>
