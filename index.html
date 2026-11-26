@@ -67,6 +67,12 @@ td.base{color:var(--muted)}
 .lcard{border:1px solid var(--line);border-radius:12px;padding:12px;background:rgba(12,8,32,.4);min-width:0}
 .lcard h3{margin:0 0 4px;font-family:var(--display);font-size:.85rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fg)}
 .lcard td{padding:6px 4px}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.who label{font-family:var(--display);font-weight:800;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--violet-soft)}
+.who select{font:inherit;font-weight:600;color:var(--fg);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;max-width:100%;flex:1 1 220px}
+.who select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.whohint{color:var(--muted);font-size:.8rem;flex:1 1 220px}
+.lcard tr.me td{background:rgba(63,224,207,.1);color:var(--teal);font-weight:600}
 @media (max-width:560px){.rounds{grid-template-columns:repeat(2,minmax(0,1fr))} h1{font-size:1.6rem} .crest{width:84px;height:84px} .status{text-align:left;width:100%}}
 @media (prefers-reduced-motion:reduce){.rbtn{transition:none}}
 </style>
@@ -79,10 +85,16 @@ td.base{color:var(--muted)}
     <div class="htext">
       <div class="kicker">FPL · Season 2026/27</div>
       <h1>Stage Zero Rounds</h1>
-      <div class="sub">FPL Classic League 657059 · four 10-gameweek rounds · points reset each round</div>
+      <div class="sub">FPL Classic League 657059 · four rounds: GW1–10, 11–19, 20–29, 30–38 · points reset each round</div>
     </div>
     <div class="status"><span id="statusLbl">Data up to</span><b id="statusGw">GW10</b></div>
   </header>
+
+  <div class="who">
+    <label for="who">Who are you?</label>
+    <select id="who"><option value="">Pick your name</option></select>
+    <span class="whohint" id="whohint">Your row gets highlighted. This is remembered on this device.</span>
+  </div>
 
   <nav class="rounds" role="tablist" id="rounds"></nav>
 
@@ -98,8 +110,10 @@ td.base{color:var(--muted)}
 
 <script>
 let DATA={updated:"",lastGw:0,managers:[]};
-const ROUNDS=[{n:1,from:1,to:10},{n:2,from:11,to:20},{n:3,from:21,to:30},{n:4,from:31,to:40}];
-const ME=3211004;
+const ROUNDS=[{n:1,from:1,to:10},{n:2,from:11,to:19},{n:3,from:20,to:29},{n:4,from:30,to:38}];
+const ME_KEY="sz-rounds-me";
+let ME=null;
+try{const v=localStorage.getItem(ME_KEY);if(v)ME=+v;}catch(e){}
 const KEY="sz-rounds-data";
 
 // Overall total at end of gameweek g (carries forward; 0 before joining)
@@ -132,7 +146,7 @@ function renderPanel(){
   const bestGw={};played.forEach(g=>{bestGw[g]=Math.max(...DATA.managers.map(m=>gwPts(m,g)));});
   let note;
   if(st==="next") note=`Round ${r.n} starts at GW${r.from}. Everyone is on 0. ${r.from>1?`Scores will count from the totals captured at the end of GW${r.from-1}.`:""}`;
-  else if(st==="live") note=`${played.length} of 10 gameweeks played. Round score = current total − total captured at GW${r.from-1}.`;
+  else if(st==="live") note=`${played.length} of ${r.to-r.from+1} gameweeks played. Round score = current total − total captured at GW${r.from-1}.`;
   else note=r.from===1?`Final. Round 1 score is the overall total at the end of GW10.`:`Final. Round score = total at GW${r.to} − total captured at GW${r.from-1}.`;
   const winner=st==="done"?rows.filter(x=>x.pos===1):[];
   const showBase=r.from>1;
@@ -154,15 +168,28 @@ function renderPanel(){
 }
 
 function renderLedger(){
-  const caps=[10,20,30].map((g,i)=>({g,next:i+2}));
+  const caps=ROUNDS.slice(0,-1).map((r,i)=>({g:r.to,next:i+2}));
   document.getElementById("ledger").innerHTML=caps.map(c=>{
     if(DATA.lastGw<c.g)return `<div class="lcard"><h3>After GW${c.g}</h3><p class="note">Captured when GW${c.g} finishes. Baseline for Round ${c.next}.</p></div>`;
     const rows=[...DATA.managers].sort((a,b)=>totalAt(b,c.g)-totalAt(a,c.g));
     return `<div class="lcard"><h3>After GW${c.g}</h3><p class="note">Baseline for Round ${c.next}</p>
-      <table><tbody>${rows.map(m=>`<tr><td class="l">${esc(m.name)}</td><td>${totalAt(m,c.g)}</td></tr>`).join("")}</tbody></table></div>`;}).join("");
+      <table><tbody>${rows.map(m=>`<tr class="${m.id===ME?"me":""}"><td class="l">${esc(m.name)}</td><td>${totalAt(m,c.g)}</td></tr>`).join("")}</tbody></table></div>`;}).join("");
 }
 
+function renderWho(){
+  const sel_=document.getElementById("who");
+  const ms=[...DATA.managers].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}));
+  if(ME&&!ms.some(m=>m.id===ME))ME=null;
+  sel_.innerHTML='<option value="">Pick your name</option>'+ms.map(m=>`<option value="${m.id}" ${m.id===ME?"selected":""}>${esc(m.name)} · ${esc(m.team)}</option>`).join("");
+}
+document.getElementById("who").addEventListener("change",e=>{
+  ME=e.target.value?+e.target.value:null;
+  try{ME?localStorage.setItem(ME_KEY,ME):localStorage.removeItem(ME_KEY);}catch(err){}
+  renderPanel();renderLedger();
+});
+
 function render(){
+  renderWho();
   renderTabs();renderPanel();renderLedger();
   document.getElementById("statusGw").textContent="GW"+DATA.lastGw;
 }
